@@ -60,7 +60,8 @@ process.stdin.on('readable', () => {
     chunk = chunk.toString();
     if(chunk.startsWith('/kick')) {
       let kickedUsername = chunk.split(' ');
-      kickedUsername = kickedUsername[1].trim();
+      kickedUsername.shift();
+      kickedUsername = kickedUsername.join(' ').trim();
       if(userCache.hasOwnProperty(kickedUsername)) {
         let kicked = userCache[kickedUsername];
         console.log('You have kicked ' + kicked.username + '.');

@@ -19,6 +19,10 @@ client.on('data', (data) => {
   console.log(data.toString());
 });
 
+client.on('end', () => {
+  console.log('Your session has ended.')
+});
+
 process.stdin.on('readable', () => {
   var chunk = process.stdin.read();
   if(chunk !== null) {
