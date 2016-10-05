@@ -26,9 +26,9 @@ const server = net.createServer((request) => {
       usersOnline[usersOnline.indexOf(request)].username = data;
       if(data !== '[ADMIN]' && !userCache.hasOwnProperty(data)) {
         userCache[data] = request;
-        process.stdout.write('User at IP ' + request.address().address + ' joined as [' + data + '].\n');
+        process.stdout.write('User at IP ' + request.address().address + ':' + request.localPort + ' joined as [' + data + '].\n');
       } else {
-        process.stdout.write('User attempted to join with duplicate username and was immediately kicked. \n');
+        process.stdout.write('User attempted to join with duplicate username \'' + data + '\' and was immediately kicked. \n');
         request.write('[ADMIN] That username is reserved. Rejoin with a different username.',
          'UTF8', () => {request.end();});
       }
@@ -43,6 +43,7 @@ const server = net.createServer((request) => {
   request.on('end', () => {
     let indexToRemove = usersOnline.indexOf(request);
     usersOnline.splice(indexToRemove, 1);
+    delete userCache[request.username];
     console.log(request.username + ' has left.');
   });
 });
@@ -55,15 +56,27 @@ server.listen({port:6969, host: '0.0.0.0'}, () => {
 
 process.stdin.on('readable', () => {
   var chunk = process.stdin.read();
-  if(chunk.toString().startsWith('/kick')) {
-    let kicked = null;
-    console.log('You have kicked ' + kicked + '.');
-    usersOnline.forEach((usr) => {
-      usr.write('[ADMIN]: ' + kicked + ' has been removed from chat by an admin.');
-    });
-  } else {
-    usersOnline.forEach((usr) => {
-      usr.write('[ADMIN]: ' + chunk);
-    });
+  if(chunk !== null) {
+    chunk = chunk.toString();
+    if(chunk.startsWith('/kick')) {
+      let kickedUsername = chunk.split(' ');
+      kickedUsername = kickedUsername[1].trim();
+      if(userCache.hasOwnProperty(kickedUsername)) {
+        let kicked = userCache[kickedUsername];
+        console.log('You have kicked ' + kicked.username + '.');
+        usersOnline.forEach((usr) => {
+          usr.write('[ADMIN]: ' + kicked.username + ' has been removed from chat by an admin.',
+            () => {
+              kicked.end();
+            });
+        });
+      } else {
+        console.log('No user called \'' + kickedUsername + '\' to kick.');
+      }
+    } else {
+      usersOnline.forEach((usr) => {
+        usr.write('[ADMIN]: ' + chunk.trim());
+      });
+    }
   }
 });
