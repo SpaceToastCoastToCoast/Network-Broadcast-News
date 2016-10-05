@@ -3,7 +3,6 @@ const process = require('process');
 
 let usersOnline = [];
 let userCache = {};
-let lastMsgTime = Date.now();
 
 function broadcastAll(data, sender) {
   usersOnline.forEach((usr) => {
@@ -17,13 +16,16 @@ function broadcastAll(data, sender) {
 const server = net.createServer((request) => {
   //handles data received
   if(usersOnline.indexOf(request) < 0) {
+    console.log('User at IP ' + request.address().address + ':' +
+          request.remotePort + ' entered the chat.');
     usersOnline.push(request);
+    usersOnline[usersOnline.indexOf(request)].lastMsgTime = 0;
   }
 
   request.on('data', (data) => {
     //flood check, if less than 15 ms since last message user will be kicked
     thisMsgTime = Date.now();
-    if((thisMsgTime - lastMsgTime) < 15) {
+    if((thisMsgTime - usersOnline[usersOnline.indexOf(request)].lastMsgTime) < 200) {
       kick(usersOnline[usersOnline.indexOf(request)].username, 'flooding the chat.');
       return;
     }
@@ -31,11 +33,14 @@ const server = net.createServer((request) => {
     if(data.toString().charCodeAt(0) === 02) {
       data = data.toString().slice(1);
       usersOnline[usersOnline.indexOf(request)].username = data;
-      if(data !== '[ADMIN]' && !userCache.hasOwnProperty(data)) {
+      if(!data.includes('ADMIN') && !userCache.hasOwnProperty(data)) {
         userCache[data] = request;
-        broadcastAll('User at IP ' + request.address().address + ':' + request.remotePort + ' is now known as [' + data + '].', request);
+        broadcastAll('User at IP ' + request.address().address + ':' +
+          request.remotePort + ' is now known as [' + data + '].', request);
       } else {
-        process.stdout.write('User attempted to join with duplicate username \'' + data + '\' and was immediately kicked. \n');
+        broadcastAll('User at IP ' + request.address().address + ':' +
+          request.remotePort + ' attempted to join with duplicate username \'' +
+          data + '\' and was immediately kicked.', request);
         request.write('[ADMIN] That username is reserved. Rejoin with a different username.',
          'UTF8', () => {request.end();});
       }
@@ -43,7 +48,7 @@ const server = net.createServer((request) => {
       //if message
       broadcastAll(data, request);
     }
-    lastMsgTime = thisMsgTime;
+    usersOnline[usersOnline.indexOf(request)].lastMsgTime = thisMsgTime;
   });
 
   //request.end();
@@ -97,9 +102,9 @@ function kick(kickedUsername, reason) {
     console.log('You have kicked ' + kicked.username + ' at ' +
     kicked.address().address + ':' + kicked.address().port + reason);
     usersOnline.forEach((usr) => {
-      usr.write('[ADMIN]: ' + kicked.username + ' at ' +
+      usr.write('[ADMIN]: user [' + kicked.username + '] at ' +
         kicked.address().address + ':' + kicked.address().port +
-        ' has been removed from chat by an admin' + reason,
+        ' has been removed from chat' + reason,
         () => {
           kicked.end();
         });
