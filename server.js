@@ -21,10 +21,10 @@ const server = net.createServer((request) => {
   }
 
   request.on('data', (data) => {
-    //flood check
+    //flood check, if less than 15 ms since last message user will be kicked
     thisMsgTime = Date.now();
     if((thisMsgTime - lastMsgTime) < 15) {
-      kick(usersOnline[usersOnline.indexOf(request)].username);
+      kick(usersOnline[usersOnline.indexOf(request)].username, 'flooding the chat.');
       return;
     }
     //if username
@@ -52,7 +52,7 @@ const server = net.createServer((request) => {
     let indexToRemove = usersOnline.indexOf(request);
     usersOnline.splice(indexToRemove, 1);
     delete userCache[request.username];
-    console.log(request.username + ' has left.');
+    broadcastAll(request.username + ' has left.', request);
   });
 });
 
@@ -60,6 +60,7 @@ const server = net.createServer((request) => {
 server.listen({port:6969, host: '0.0.0.0'}, () => {
   const address = server.address();
   console.log(`opened server on port ${address.port}`);
+  console.log('You are [ADMIN]. Type \'/kick [username] [optional: /r reason]\' to remove someone from chat.');
 });
 
 process.stdin.on('readable', () => {
@@ -70,7 +71,13 @@ process.stdin.on('readable', () => {
       let kickedUsername = chunk.split(' ');
       kickedUsername.shift();
       kickedUsername = kickedUsername.join(' ').trim();
-      kick(kickedUsername);
+      let reason = kickedUsername.split('/r');
+      reason.shift();
+      if(kickedUsername.split('/r').length > 1) {
+        kickedUsername = kickedUsername.split('/r').shift().trim();
+      }
+      reason = reason.join(' ').trim();
+      kick(kickedUsername, reason);
       } else {
       usersOnline.forEach((usr) => {
         usr.write('[ADMIN]: ' + chunk.trim());
@@ -79,15 +86,20 @@ process.stdin.on('readable', () => {
   }
 });
 
-function kick(kickedUsername) {
+function kick(kickedUsername, reason) {
   if(userCache.hasOwnProperty(kickedUsername)) {
+    if(reason === undefined || reason.length <= 1) {
+      reason = '.';
+    } else {
+      reason = '.\n[REASON: ' + reason + ']';
+    }
     let kicked = userCache[kickedUsername];
     console.log('You have kicked ' + kicked.username + ' at ' +
-    kicked.address().address + ':' + kicked.address().port + '.');
+    kicked.address().address + ':' + kicked.address().port + reason);
     usersOnline.forEach((usr) => {
       usr.write('[ADMIN]: ' + kicked.username + ' at ' +
         kicked.address().address + ':' + kicked.address().port +
-        ' has been removed from chat by an admin.',
+        ' has been removed from chat by an admin' + reason,
         () => {
           kicked.end();
         });

@@ -21,6 +21,12 @@ client.on('data', (data) => {
 
 client.on('end', () => {
   console.log('Your session has ended.');
+  process.exit();
+});
+
+client.on('error', (error) => {
+  client.end();
+  process.exit();
 });
 
 process.stdin.on('readable', () => {
