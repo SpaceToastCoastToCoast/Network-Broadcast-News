@@ -26,7 +26,7 @@ const server = net.createServer((request) => {
       usersOnline[usersOnline.indexOf(request)].username = data;
       if(data !== '[ADMIN]' && !userCache.hasOwnProperty(data)) {
         userCache[data] = request;
-        process.stdout.write('User at IP ' + request.address().address + ':' + request.localPort + ' joined as [' + data + '].\n');
+        process.stdout.write('User at IP ' + request.address().address + ':' + request.remotePort + ' joined as [' + data + '].\n');
       } else {
         process.stdout.write('User attempted to join with duplicate username \'' + data + '\' and was immediately kicked. \n');
         request.write('[ADMIN] That username is reserved. Rejoin with a different username.',
@@ -62,22 +62,29 @@ process.stdin.on('readable', () => {
       let kickedUsername = chunk.split(' ');
       kickedUsername.shift();
       kickedUsername = kickedUsername.join(' ').trim();
-      if(userCache.hasOwnProperty(kickedUsername)) {
-        let kicked = userCache[kickedUsername];
-        console.log('You have kicked ' + kicked.username + '.');
-        usersOnline.forEach((usr) => {
-          usr.write('[ADMIN]: ' + kicked.username + ' has been removed from chat by an admin.',
-            () => {
-              kicked.end();
-            });
-        });
+      kick(kickedUsername);
       } else {
-        console.log('No user called \'' + kickedUsername + '\' to kick.');
-      }
-    } else {
       usersOnline.forEach((usr) => {
         usr.write('[ADMIN]: ' + chunk.trim());
       });
     }
   }
 });
+
+function kick(kickedUsername) {
+  if(userCache.hasOwnProperty(kickedUsername)) {
+    let kicked = userCache[kickedUsername];
+    console.log('You have kicked ' + kicked.username + ' at ' +
+    kicked.address().address + ':' + kicked.address().port + '.');
+    usersOnline.forEach((usr) => {
+      usr.write('[ADMIN]: ' + kicked.username + ' at ' +
+        kicked.address().address + ':' + kicked.address().port +
+        ' has been removed from chat by an admin.',
+        () => {
+          kicked.end();
+        });
+    });
+  } else {
+    console.log('No user called \'' + kickedUsername + '\' to kick.');
+  }
+}

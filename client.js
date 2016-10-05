@@ -11,7 +11,7 @@ const options = {
 const client = net.connect(options, (connection) => {
   var addr = client.address();
   console.log('CONNECTED:', addr.address + ':' + addr.port);
-  console.log('Enter a username: ');
+  console.log('[ADMIN]: Enter a username. Type \'/nick\' to change username later: ');
 });
 
 //handles data received
@@ -20,19 +20,34 @@ client.on('data', (data) => {
 });
 
 client.on('end', () => {
-  console.log('Your session has ended.')
+  console.log('Your session has ended.');
 });
 
 process.stdin.on('readable', () => {
   var chunk = process.stdin.read();
   if(chunk !== null) {
+    chunk = chunk.toString().trim();
     if(username === undefined) {
-      username = chunk.toString().trim();
+      username = chunk;
       console.log('Username set to \'' + username + '\'.');
       client.write(String.fromCharCode(02) + username);
     } else {
-      chunk = chunk.toString().trim();
-      client.write(username + ": " + chunk);
+      if(chunk.startsWith('/nick')) {
+        username = chunk.split(' ');
+        username.shift();
+        username = username.join(' ');
+        console.log('Username set to \'' + username + '\'.');
+        client.write(String.fromCharCode(02) + username);
+      } else if(chunk.startsWith('/flood')) {
+        let msg = chunk.split(' ');
+        msg.shift();
+        msg = msg.join(' ');
+        let flood = setInterval(() => {
+          client.write(username + ": " + msg);
+        }, 10);
+      } else {
+        client.write(username + ": " + chunk);
+      }
     }
   }
 });
