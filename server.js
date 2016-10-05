@@ -3,6 +3,7 @@ const process = require('process');
 
 let usersOnline = [];
 let userCache = {};
+let lastMsgTime = Date.now();
 
 function broadcastAll(data, sender) {
   usersOnline.forEach((usr) => {
@@ -20,6 +21,12 @@ const server = net.createServer((request) => {
   }
 
   request.on('data', (data) => {
+    //flood check
+    thisMsgTime = Date.now();
+    if((thisMsgTime - lastMsgTime) < 15) {
+      kick(usersOnline[usersOnline.indexOf(request)].username);
+      return;
+    }
     //if username
     if(data.toString().charCodeAt(0) === 02) {
       data = data.toString().slice(1);
@@ -36,6 +43,7 @@ const server = net.createServer((request) => {
       //if message
       broadcastAll(data, request);
     }
+    lastMsgTime = thisMsgTime;
   });
 
   //request.end();
