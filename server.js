@@ -33,7 +33,7 @@ const server = net.createServer((request) => {
       usersOnline[usersOnline.indexOf(request)].username = data;
       if(data !== '[ADMIN]' && !userCache.hasOwnProperty(data)) {
         userCache[data] = request;
-        process.stdout.write('User at IP ' + request.address().address + ':' + request.remotePort + ' joined as [' + data + '].\n');
+        broadcastAll('User at IP ' + request.address().address + ':' + request.remotePort + ' is now known as [' + data + '].', request);
       } else {
         process.stdout.write('User attempted to join with duplicate username \'' + data + '\' and was immediately kicked. \n');
         request.write('[ADMIN] That username is reserved. Rejoin with a different username.',
